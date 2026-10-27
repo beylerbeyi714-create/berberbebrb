@@ -1,0 +1,208 @@
+{
+  "id": "asfWf10ErrorMon0",
+  "name": "10 Error Monitoring",
+  "nodes": [
+    {
+      "id": "f0215078-5364-5a75-9b50-8073f8480a50",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2ef5f791-632d-5cb5-b90e-709c72f4ea20",
+      "name": "Log workflow error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/errors",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'n8n:' + ($json.workflow?.name || 'unknown'), message: ($json.execution?.error?.message || 'workflow error').slice(0, 1000), detail: { node: $json.execution?.lastNodeExecuted, description: ($json.execution?.error?.description || '').slice(0, 1500), execution_id: $json.execution?.id, url: $json.execution?.url, retry_of: $json.execution?.retryOf } }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "b104d401-7677-5366-86b1-b66c77bcf872",
+      "name": "Hourly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        440
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9741a535-35c5-5e6e-8fe2-1c444ac423c1",
+      "name": "Monitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        440
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://factory-api:8000/api/monitor",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "566b4aef-4622-56b8-98cb-af9bf46aee29",
+      "name": "Alerts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        460,
+        440
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "054ab128-4c8c-4404-b5a0-fc5c0474a6b9",
+              "leftValue": "={{ $json.alerts.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "0fada254-c727-51e2-b31c-16184a278061",
+      "name": "Log alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/errors",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'monitor', message: $json.alerts.join(' | '), detail: { cost_today_usd: $json.cost_today_usd, uploads_today: $json.uploads_today } }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log workflow error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hourly": {
+      "main": [
+        [
+          {
+            "node": "Monitor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor": {
+      "main": [
+        [
+          {
+            "node": "Alerts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerts?": {
+      "main": [
+        [
+          {
+            "node": "Log alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Europe/Istanbul"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "versionId": "d91f6147-e83c-5d3f-8ab6-87bd3985d278"
+}

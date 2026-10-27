@@ -1,0 +1,578 @@
+{
+  "id": "asfWf08Analytics",
+  "name": "08 Analytics Collector",
+  "nodes": [
+    {
+      "id": "c957bd01-772d-55a5-aa39-ca9fe5845eec",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "20 3 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "8a98d6f1-f9ef-54bc-92cc-1772a975498e",
+      "name": "Manual webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        420
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asf-analytics",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "053c1207-8d98-5661-8ca8-af36d8cbcf9f",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfWebhookKey001",
+          "name": "n8n Webhook Key"
+        }
+      }
+    },
+    {
+      "id": "bbcb06f3-bb10-54a5-aad4-9b6aab710336",
+      "name": "Get targets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://factory-api:8000/api/analytics/targets",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "7461ef0c-5e0f-5fcf-9a41-ec476a3e5129",
+      "name": "Any videos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6d9d0a6e-94ff-40fb-aca0-cf53dcdf5729",
+              "leftValue": "={{ $json.targets.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "5495be21-8b26-5546-8f4e-4f52d310e5bf",
+      "name": "Chunk ids (50)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const ids = $input.first().json.targets.map(t => t.youtube_video_id);\nconst out = [];\nfor (let i = 0; i < ids.length; i += 50) out.push({ json: { ids: ids.slice(i, i + 50).join(',') } });\nreturn out;"
+      }
+    },
+    {
+      "id": "2ea45fd8-fcfd-56d3-a68e-e29dd391a17a",
+      "name": "Data API: videos.list statistics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "statistics"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.ids }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "7ce4ba62-0491-5071-9578-67091a6eebab",
+      "name": "Ingest Data API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/analytics/ingest",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ kind: 'data_api', payload: $json }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "b3292f97-fa58-5f1b-a700-202997473f6e",
+      "name": "Analytics API: per-video totals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        420
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://youtubeanalytics.googleapis.com/v2/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "channel==MINE"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $('Get targets').first().json.start_date }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "name": "metrics",
+              "value": "views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,subscribersLost"
+            },
+            {
+              "name": "dimensions",
+              "value": "video"
+            },
+            {
+              "name": "sort",
+              "value": "-views"
+            },
+            {
+              "name": "maxResults",
+              "value": "200"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "f6ef121f-a171-5b08-b4b2-74e623dff994",
+      "name": "Latest 20 videos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        420
+      ],
+      "parameters": {
+        "jsCode": "return $('Get targets').first().json.targets.slice(0, 20).map(t => ({ json: t }));"
+      }
+    },
+    {
+      "id": "c18fe20e-619b-5b34-8fe6-1a031825e4c4",
+      "name": "Analytics API: traffic sources",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        420
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://youtubeanalytics.googleapis.com/v2/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "channel==MINE"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $('Get targets').first().json.start_date }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "name": "metrics",
+              "value": "views"
+            },
+            {
+              "name": "dimensions",
+              "value": "insightTrafficSourceType"
+            },
+            {
+              "name": "filters",
+              "value": "=video=={{ $json.youtube_video_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "e79ec38b-f585-5147-8619-a48b0635bf90",
+      "name": "Analytics API: retention",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        420
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://youtubeanalytics.googleapis.com/v2/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "channel==MINE"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $('Get targets').first().json.start_date }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "name": "metrics",
+              "value": "audienceWatchRatio,relativeRetentionPerformance"
+            },
+            {
+              "name": "dimensions",
+              "value": "elapsedVideoTimeRatio"
+            },
+            {
+              "name": "filters",
+              "value": "=video=={{ $('Latest 20 videos').item.json.youtube_video_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "d223ea7a-265e-5a07-8e29-8c41c2bcf97c",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        420
+      ],
+      "parameters": {
+        "jsCode": "const vids = $('Latest 20 videos').all().map(i => i.json.youtube_video_id);\nconst traffic = {}, retention = {};\n$('Analytics API: traffic sources').all().forEach((it, i) => traffic[vids[i]] = it.json);\n$input.all().forEach((it, i) => retention[vids[i]] = it.json);\nreturn [{ json: { kind: 'analytics_api', payload: { daily: $('Analytics API: per-video totals').first().json, traffic, retention } } }];"
+      }
+    },
+    {
+      "id": "a4b2b556-1564-5b7c-81a4-a7ce1928c6e5",
+      "name": "Ingest Analytics API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/analytics/ingest",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "cb4b9961-d63f-5f37-bc14-6452f5bec4be",
+      "name": "Log run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3360,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/workflow-runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: \"analytics\", status: \"success\", execution_id: $execution.id, detail: $json }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual webhook": {
+      "main": [
+        [
+          {
+            "node": "Get targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get targets": {
+      "main": [
+        [
+          {
+            "node": "Any videos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any videos?": {
+      "main": [
+        [
+          {
+            "node": "Chunk ids (50)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Analytics API: per-video totals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk ids (50)": {
+      "main": [
+        [
+          {
+            "node": "Data API: videos.list statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data API: videos.list statistics": {
+      "main": [
+        [
+          {
+            "node": "Ingest Data API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analytics API: per-video totals": {
+      "main": [
+        [
+          {
+            "node": "Latest 20 videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Latest 20 videos": {
+      "main": [
+        [
+          {
+            "node": "Analytics API: traffic sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analytics API: traffic sources": {
+      "main": [
+        [
+          {
+            "node": "Analytics API: retention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analytics API: retention": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Ingest Analytics API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest Analytics API": {
+      "main": [
+        [
+          {
+            "node": "Log run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Europe/Istanbul",
+    "errorWorkflow": "asfWf10ErrorMon0"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "versionId": "5ba3d434-6b18-5e17-b78e-015a8abd9263"
+}

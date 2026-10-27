@@ -1,0 +1,242 @@
+{
+  "id": "asfWf09Optimizer",
+  "name": "09 Performance Optimizer",
+  "nodes": [
+    {
+      "id": "c3aa28a6-8857-520b-8066-59fb5c352b73",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "40 4 * * 1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d468fa60-07a6-5bdc-a2cb-9c365cbfa3fb",
+      "name": "Manual webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        420
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asf-optimizer",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "e9494763-65ed-5e1a-9e97-6107653b9d95",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfWebhookKey001",
+          "name": "n8n Webhook Key"
+        }
+      }
+    },
+    {
+      "id": "020b7949-f598-5a89-8751-d7f92d5e2761",
+      "name": "Should run?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://factory-api:8000/api/should-run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "workflow",
+              "value": "optimizer"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "82795306-256e-54ff-b347-50203aba0a48",
+      "name": "Automation on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9f69198f-ce49-4d59-9a5e-c38e1385c793",
+              "leftValue": "={{ $json.run }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "1516875a-5ac2-576b-bbbd-0c1298a749d1",
+      "name": "Run: optimizer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/optimizer/run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "d82bfa0e-63b7-53d4-aa67-958681318796",
+      "name": "Log run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/workflow-runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: \"optimizer\", status: \"success\", execution_id: $execution.id, detail: $json }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Should run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should run?": {
+      "main": [
+        [
+          {
+            "node": "Automation on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Automation on?": {
+      "main": [
+        [
+          {
+            "node": "Run: optimizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual webhook": {
+      "main": [
+        [
+          {
+            "node": "Run: optimizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: optimizer": {
+      "main": [
+        [
+          {
+            "node": "Log run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Europe/Istanbul",
+    "errorWorkflow": "asfWf10ErrorMon0"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "versionId": "df1459b7-7756-5fc2-b2bf-8de07d47958e"
+}

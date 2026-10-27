@@ -1,0 +1,251 @@
+{
+  "id": "asfWf01Research0",
+  "name": "01 Daily Content Research",
+  "nodes": [
+    {
+      "id": "3cd36f90-535e-5dad-8cfe-3246f63e0185",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "10 7 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "6ec17977-aa7f-5135-a1a4-525c924e1164",
+      "name": "Manual webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        420
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asf-research",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "47d48a5d-0903-5e1f-a73a-1f7f073e6076",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfWebhookKey001",
+          "name": "n8n Webhook Key"
+        }
+      }
+    },
+    {
+      "id": "3fc93bb3-b5a9-5c9c-ad9c-3410f23c76ad",
+      "name": "Should run?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://factory-api:8000/api/should-run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "workflow",
+              "value": "research"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "19056928-7569-5c3a-9097-6c03dd22c1e6",
+      "name": "Automation on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8f4093db-ca8a-4ce0-a6d0-39f7719caf27",
+              "leftValue": "={{ $json.run }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "9f3ab8ef-d7ee-5dbc-adde-b0ad2d5fdc10",
+      "name": "Run: research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/research/run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "count",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "a31b042b-09b6-52bd-b517-b10ff8fbe2ff",
+      "name": "Log run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/workflow-runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: \"research\", status: \"success\", execution_id: $execution.id, detail: $json }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Should run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should run?": {
+      "main": [
+        [
+          {
+            "node": "Automation on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Automation on?": {
+      "main": [
+        [
+          {
+            "node": "Run: research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual webhook": {
+      "main": [
+        [
+          {
+            "node": "Run: research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: research": {
+      "main": [
+        [
+          {
+            "node": "Log run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Europe/Istanbul",
+    "errorWorkflow": "asfWf10ErrorMon0"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "versionId": "0d1ca1c9-3db9-5178-b983-557b3e158624"
+}

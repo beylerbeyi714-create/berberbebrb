@@ -1,0 +1,26 @@
+{
+  "topic": "Bal neden bozulmaz?",
+  "script": {
+    "hook": "Binlerce yıl bekleyen bir kavanoz bal hâlâ yenebilir mi?",
+    "hook_visual_prompt": "ancient clay honey jar glowing in a dim Egyptian tomb, dust particles in a beam of light",
+    "scenes": [
+      {"text": "Arkeologlar Mısır mezarlarında binlerce yıllık bal kavanozları buldu. Ve bu ballar bozulmamıştı.",
+       "visual_prompt": "archaeologist's gloved hands lifting a sealed ancient honey pot, warm torchlight"},
+      {"text": "İlk sır su oranında. Balın yaklaşık yüzde on yedisi su; bu, bakterilerin yaşayamayacağı kadar az.",
+       "visual_prompt": "macro shot of thick golden honey dripping slowly, scientific overlay style, no text"},
+      {"text": "İkinci sır asitlik. Balın pH değeri üç ile dört buçuk arasında; mikroplar için düşmanca bir ortam.",
+       "visual_prompt": "stylized microscopic bacteria shrinking away from golden liquid, clean scientific illustration"},
+      {"text": "Üçüncü sır arılardan geliyor. Arıların eklediği bir enzim, balda az miktarda hidrojen peroksit oluşturur.",
+       "visual_prompt": "close-up of honeybees working on honeycomb cells, golden backlight, shallow depth of field"},
+      {"text": "Yani balı kapalı ve kuru tutarsanız, neredeyse sonsuza kadar dayanır.",
+       "visual_prompt": "a modern sealed jar of honey on a kitchen shelf, morning light, cozy atmosphere"}
+    ],
+    "title": "Bal Neden Hiç Bozulmaz? 3 Bilimsel Sır",
+    "description": "Binlerce yıllık bal neden hâlâ yenebilir? Su oranı, asitlik ve arıların enzimi balı mikroplara karşı koruyor.",
+    "tags": ["bal", "bilim", "arı", "gıda bilimi", "ilginç bilgiler", "shorts"],
+    "sources": [
+      {"title": "Smithsonian Magazine — The Science Behind Honey's Eternal Shelf Life",
+       "url": "https://www.smithsonianmag.com/science-nature/the-science-behind-honeys-eternal-shelf-life-1218690/"}
+    ]
+  }
+}

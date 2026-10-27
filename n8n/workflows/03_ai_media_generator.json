@@ -1,0 +1,251 @@
+{
+  "id": "asfWf03MediaGen0",
+  "name": "03 AI Media Generator",
+  "nodes": [
+    {
+      "id": "f4577184-a410-5399-8c6d-574be9d724c8",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "42d450e5-a4ee-5e09-9343-c0f35034ca95",
+      "name": "Manual webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        420
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asf-media",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "3b5d9818-9d38-52df-9289-9238e488a149",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfWebhookKey001",
+          "name": "n8n Webhook Key"
+        }
+      }
+    },
+    {
+      "id": "cd63f2d3-0cb9-5c4e-bf9a-3d9484fa5214",
+      "name": "Should run?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://factory-api:8000/api/should-run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "workflow",
+              "value": "media"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "29d993f5-abb5-5ebb-b136-d4bf4fa33c29",
+      "name": "Automation on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dbb30d4c-fe2d-4047-b629-bedbfa5b1131",
+              "leftValue": "={{ $json.run }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "05e74c9a-f3c0-503e-8dae-02f587ab52ab",
+      "name": "Run: media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/steps/media/run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "3"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "bde6bd74-67ec-5f19-8fe7-756356568742",
+      "name": "Log run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/workflow-runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: \"media\", status: \"success\", execution_id: $execution.id, detail: $json }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Should run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should run?": {
+      "main": [
+        [
+          {
+            "node": "Automation on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Automation on?": {
+      "main": [
+        [
+          {
+            "node": "Run: media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual webhook": {
+      "main": [
+        [
+          {
+            "node": "Run: media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: media": {
+      "main": [
+        [
+          {
+            "node": "Log run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Europe/Istanbul",
+    "errorWorkflow": "asfWf10ErrorMon0"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "versionId": "d19e091b-309e-5399-9008-3669f03759cf"
+}

@@ -1,0 +1,735 @@
+{
+  "id": "asfWf00E2EPipeln",
+  "name": "00 E2E Pipeline (test)",
+  "nodes": [
+    {
+      "id": "a8c2a083-91d3-52a0-aa55-00d9eb903044",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asf-e2e",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "f1fa710b-df13-550a-b529-57421741efcf",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfWebhookKey001",
+          "name": "n8n Webhook Key"
+        }
+      }
+    },
+    {
+      "id": "c32f8c56-4654-5e4f-af55-893f57b1ef56",
+      "name": "Has video_id?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8f13651a-b28f-4fe7-a531-2f0a83d37d42",
+              "leftValue": "={{ !!$json.body.video_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "c0a4c217-39d6-5eee-806a-d080c8bdd46e",
+      "name": "Has script?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        420
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "42f64595-6b14-4db5-98f0-868372d9c613",
+              "leftValue": "={{ !!$json.body.script }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "2a5afc27-a254-5062-a510-83222c1cbfae",
+      "name": "Save manual script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        360
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/scripts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ topic: $json.body.topic, script: $json.body.script }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "d56d8bce-f362-542e-a8ac-de425b01632c",
+      "name": "Generate script (LLM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        520
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/scripts/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "041856b7-ab48-55cd-947a-6fba3080900d",
+      "name": "Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst id = j.video_id || (j.body && j.body.video_id);\nif (!id) throw new Error('video_id yok: ' + JSON.stringify(j).slice(0, 300));\nreturn [{ json: { video_id: id } }];"
+      }
+    },
+    {
+      "id": "6f6d193f-b2b2-587a-8c58-e0ee9602400b",
+      "name": "Generate media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://factory-api:8000/api/videos/{{ $('Context').first().json.video_id }}/media",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "1cec2f19-2e1f-5ace-8110-28987a6978bc",
+      "name": "Poll media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://factory-api:8000/api/videos/{{ $('Context').first().json.video_id }}/poll-media",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "1baccdc9-a747-5f0d-ab60-0d6096b62076",
+      "name": "Poll media done?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const s = $input.first().json.stage;\nif (s === 'failed') throw new Error('Poll media: video failed — ' + JSON.stringify($input.first().json).slice(0, 500));\nif ($runIndex >= 80) throw new Error('Poll media: zaman aşımı');\nreturn [{ json: { done: s === 'media_ready', stage: s } }];"
+      }
+    },
+    {
+      "id": "e25c16ab-ca09-5fed-99bc-49e2620c4a61",
+      "name": "Poll media ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1780,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "40247c39-6f63-4a94-b8d4-dee86f62d3c0",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "8ad5d071-4166-5c08-8dcd-478baf9381ab",
+      "name": "Poll media wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1780,
+        480
+      ],
+      "parameters": {
+        "amount": 15,
+        "unit": "seconds"
+      },
+      "webhookId": "7cda2023-3770-56c8-a325-ea7f6ad99bef"
+    },
+    {
+      "id": "54342f22-f88a-5c32-91e2-1771d4c37626",
+      "name": "Voice + subtitles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://factory-api:8000/api/videos/{{ $('Context').first().json.video_id }}/voice",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "fef66d5c-5a8c-56b0-867e-bf9fdb6e47ae",
+      "name": "Start render",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2220,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://factory-api:8000/api/videos/{{ $('Context').first().json.video_id }}/render",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "085c586a-a578-5b63-ba4f-bc2cb15b7f1f",
+      "name": "Render status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2440,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://factory-api:8000/api/videos/{{ $('Context').first().json.video_id }}/render-status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "9e04e31d-57dc-5308-8f7c-c724eac89a12",
+      "name": "Render status done?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const s = $input.first().json.stage;\nif (s === 'failed') throw new Error('Render status: video failed — ' + JSON.stringify($input.first().json).slice(0, 500));\nif ($runIndex >= 120) throw new Error('Render status: zaman aşımı');\nreturn [{ json: { done: s === 'rendered', stage: s } }];"
+      }
+    },
+    {
+      "id": "a965631c-5881-533d-9cc9-37d4d3a52d03",
+      "name": "Render status ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2880,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d9ebc99f-4b4a-4879-bc32-f9cccf1523fb",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "885b6e8a-e0d3-5b04-924c-d96792aba2d7",
+      "name": "Render status wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        480
+      ],
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "webhookId": "673bf04f-8023-5168-b24a-553ede64e5f7"
+    },
+    {
+      "id": "c6275394-4e71-53ff-8203-cc4a7d5de15b",
+      "name": "Quality control",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3100,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://factory-api:8000/api/videos/{{ $('Context').first().json.video_id }}/qc",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "31d18776-e80f-5aac-ba62-355b9d878537",
+      "name": "Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3320,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const q = $('Quality control').first().json;\nreturn [{ json: { video_id: q.video_id, qc_passed: q.passed, public_eligible: q.public_eligible,\n  failed_checks: Object.entries(q.checks || {}).filter(([k, c]) => !c.ok).map(([k, c]) => `${k}: ${c.detail}`),\n  warnings: q.warnings, next: q.passed ? 'Panelden onaylayın; 07 YouTube Publisher gizli olarak yükler.' : 'QC başarısız: yayınlanmaz.' } }];"
+      }
+    },
+    {
+      "id": "1b06fd95-b545-5ae9-9ae0-9885d6618cb6",
+      "name": "Log run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4800,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/workflow-runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: \"e2e\", status: \"success\", execution_id: $execution.id, detail: $json }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Has video_id?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has video_id?": {
+      "main": [
+        [
+          {
+            "node": "Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has script?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has script?": {
+      "main": [
+        [
+          {
+            "node": "Save manual script",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate script (LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save manual script": {
+      "main": [
+        [
+          {
+            "node": "Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate script (LLM)": {
+      "main": [
+        [
+          {
+            "node": "Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Context": {
+      "main": [
+        [
+          {
+            "node": "Generate media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll media": {
+      "main": [
+        [
+          {
+            "node": "Poll media done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll media done?": {
+      "main": [
+        [
+          {
+            "node": "Poll media ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll media ready?": {
+      "main": [
+        [
+          {
+            "node": "Voice + subtitles",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Poll media wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll media wait": {
+      "main": [
+        [
+          {
+            "node": "Poll media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate media": {
+      "main": [
+        [
+          {
+            "node": "Poll media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice + subtitles": {
+      "main": [
+        [
+          {
+            "node": "Start render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render status": {
+      "main": [
+        [
+          {
+            "node": "Render status done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render status done?": {
+      "main": [
+        [
+          {
+            "node": "Render status ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render status ready?": {
+      "main": [
+        [
+          {
+            "node": "Quality control",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render status wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render status wait": {
+      "main": [
+        [
+          {
+            "node": "Render status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start render": {
+      "main": [
+        [
+          {
+            "node": "Render status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality control": {
+      "main": [
+        [
+          {
+            "node": "Log run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log run": {
+      "main": [
+        [
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Europe/Istanbul",
+    "errorWorkflow": "asfWf10ErrorMon0"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "versionId": "7aeacb98-d1a4-5985-9828-9037f32a9bd2"
+}

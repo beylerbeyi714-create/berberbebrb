@@ -1,0 +1,21 @@
+{
+  "topic": "Ahtapotun neden üç kalbi var?",
+  "script": {
+    "hook": "Bir canlının üç kalbi ve mavi kanı olabilir mi?",
+    "hook_visual_prompt": "a curious octopus in deep blue water looking at the camera, bioluminescent particles",
+    "scenes": [
+      {"text": "Ahtapotlar tam olarak böyle. İki küçük kalp, kanı solungaçlara pompalar.",
+       "visual_prompt": "anatomical style illustration of an octopus with two small hearts highlighted near the gills"},
+      {"text": "Üçüncü ve büyük kalp ise oksijenli kanı bütün vücuda gönderir.",
+       "visual_prompt": "glowing central heart inside a translucent octopus body, scientific illustration, dark background"},
+      {"text": "Kanları mavidir, çünkü oksijeni demir yerine bakır içeren hemosiyanin taşır.",
+       "visual_prompt": "close-up of blue liquid swirling with copper colored molecular structures, macro photography"},
+      {"text": "Ve şaşırtıcı bir detay: yüzerken ana kalp durur. Bu yüzden ahtapotlar sürünmeyi tercih eder.",
+       "visual_prompt": "octopus crawling gracefully over colorful coral reef rocks, sunlight rays from above"}
+    ],
+    "title": "Ahtapotun 3 Kalbi ve Mavi Kanı",
+    "description": "Ahtapotlar neden üç kalbe ve mavi kana sahip? Hemosiyanin ve sistemik kalbin şaşırtıcı davranışı.",
+    "tags": ["ahtapot", "biyoloji", "deniz canlıları", "bilim", "ilginç bilgiler"],
+    "sources": [{"title": "Wikipedia — Octopus (Circulation)", "url": "https://en.wikipedia.org/wiki/Octopus"}]
+  }
+}

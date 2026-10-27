@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Shorts Factory — Giriş</title><link rel="stylesheet" href="/static/panel.css"></head>
+<body class="login">
+<form method="post" action="/login" class="card login-card">
+  <h1>AI Shorts Factory</h1>
+  {% if error %}<p class="err">{{ error }}</p>{% endif %}
+  <label>Kullanıcı adı<input name="username" autocomplete="username" required></label>
+  <label>Şifre<input name="password" type="password" autocomplete="current-password" required></label>
+  <button type="submit">Giriş yap</button>
+</form>
+</body></html>

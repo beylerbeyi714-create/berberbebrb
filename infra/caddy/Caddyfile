@@ -1,0 +1,22 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# n8n editörü ve webhook'ları — n8n'in kendi kullanıcı girişi + (isteğe bağlı) IP kısıtlaması
+{$N8N_DOMAIN} {
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	reverse_proxy n8n:5678
+}
+
+# Yönetim paneli — panelin kendi oturum doğrulaması vardır
+{$PANEL_DOMAIN} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options DENY
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+	reverse_proxy factory-api:8000
+}

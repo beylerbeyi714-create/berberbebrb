@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Shorts Factory</title>
+<link rel="stylesheet" href="/static/panel.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head><body>
+<header>
+  <strong>AI Shorts Factory</strong>
+  <nav id="tabs">
+    <button data-tab="overview" class="active">Genel</button>
+    <button data-tab="videos">Videolar</button>
+    <button data-tab="ideas">Fikir kuyruğu</button>
+    <button data-tab="calendar">Yayın takvimi</button>
+    <button data-tab="costs">Maliyet</button>
+    <button data-tab="perf">Performans</button>
+    <button data-tab="errors">Hatalar</button>
+  </nav>
+  <span class="right">{{ user }} · <a href="{{ n8n_url }}" target="_blank" rel="noopener">n8n</a>
+    <form method="post" action="/logout" style="display:inline"><button class="link">Çıkış</button></form></span>
+</header>
+<main>
+<section id="overview" class="tab active">
+  <div class="grid">
+    <div class="card"><h2>Otomasyon</h2>
+      <p id="auto-state">…</p>
+      <button id="auto-toggle">…</button>
+      <p class="muted">Kapalıyken n8n zamanlanmış akışları hiçbir şey üretmez.</p></div>
+    <div class="card"><h2>Bugün</h2><div id="today"></div></div>
+    <div class="card"><h2>Bağlantılar</h2><div id="secrets"></div></div>
+    <div class="card"><h2>Üretim durumu</h2><div id="stages"></div></div>
+  </div>
+  <div class="card"><h2>Ayarlar</h2>
+    <form id="settings" class="settings">
+      <label>Günlük video hedefi<input name="daily_video_target" type="number" min="0" max="50"></label>
+      <label>Dil<select name="language"><option value="tr">Türkçe</option><option value="en">English</option></select></label>
+      <label>Kategoriler (virgülle)<input name="categories"></label>
+      <label>Min süre (sn)<input name="min_duration_sec" type="number"></label>
+      <label>Maks süre (sn)<input name="max_duration_sec" type="number"></label>
+      <label>Günlük maliyet sınırı ($)<input name="daily_cost_limit_usd" type="number" step="0.5"></label>
+      <label>Maks tekrar deneme<input name="max_retries" type="number" min="0" max="10"></label>
+      <label>İçerik modu<select name="content_mode"><option value="original_ai">A — Özgün yapay zekâ</option>
+        <option value="licensed_transform">B — Lisanslı kaynak dönüşümü</option></select></label>
+      <label>Yükleme gizliliği<select name="upload_privacy"><option value="private">Gizli</option>
+        <option value="unlisted">Liste dışı</option><option value="scheduled">Zamanlanmış herkese açık</option>
+        <option value="public">Hemen herkese açık</option></select></label>
+      <label class="chk"><input type="checkbox" name="public_publishing_enabled"> Herkese açık yayına izin ver</label>
+      <label class="chk"><input type="checkbox" name="require_manual_approval"> Yayın öncesi manuel onay</label>
+      <fieldset><legend>Sağlayıcılar</legend>
+        <label>Senaryo (LLM)<select name="p_llm"></select></label>
+        <label>Görsel<select name="p_image"></select></label>
+        <label>Video<select name="p_video"></select></label>
+        <label>Seslendirme<select name="p_tts"></select></label>
+      </fieldset>
+      <button type="submit">Kaydet</button> <span id="settings-msg" class="muted"></span>
+    </form></div>
+</section>
+
+<section id="videos" class="tab">
+  <div class="card"><h2>Videolar</h2>
+    <label>Aşama filtresi <select id="stage-filter"><option value="">Tümü</option></select></label>
+    <table id="video-table"><thead><tr><th>Başlık</th><th>Aşama</th><th>Süre</th><th>Maliyet</th><th>QC</th><th>YouTube</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="card" id="video-detail" hidden></div>
+</section>
+
+<section id="ideas" class="tab">
+  <div class="card"><h2>Fikir ekle</h2>
+    <form id="idea-form" class="inline"><input name="topic" placeholder="Konu" required>
+      <input name="category" placeholder="Kategori"><input name="angle" placeholder="Açı / farklılık">
+      <button>Ekle</button></form><p id="idea-msg" class="muted"></p></div>
+  <div class="card"><h2>Kuyruk</h2><table id="idea-table"><thead><tr><th>Puan</th><th>Konu</th><th>Kategori</th><th>Kaynak</th><th></th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="calendar" class="tab">
+  <div class="card"><h2>Yayın takvimi</h2><table id="cal-table"><thead><tr><th>Tarih</th><th>Başlık</th><th>Durum</th><th>Bağlantı</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="costs" class="tab">
+  <div class="card"><h2>API maliyetleri (son 30 gün, tahmini)</h2><canvas id="cost-chart" height="110"></canvas>
+    <table id="cost-table"><thead><tr><th>Gün</th><th>Sağlayıcı</th><th>Çağrı</th><th>Hata</th><th>Maliyet $</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="perf" class="tab">
+  <div class="card"><h2>Performans</h2><canvas id="perf-chart" height="110"></canvas>
+    <button id="run-opt">Optimizasyon analizi çalıştır</button><pre id="opt-out"></pre></div>
+</section>
+
+<section id="errors" class="tab">
+  <div class="card"><h2>Hata kayıtları</h2><table id="err-table"><thead><tr><th>Zaman</th><th>Kaynak</th><th>Mesaj</th><th></th></tr></thead><tbody></tbody></table></div>
+</section>
+</main>
+<script src="/static/panel.js"></script>
+</body></html>

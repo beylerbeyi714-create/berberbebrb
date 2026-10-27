@@ -1,0 +1,743 @@
+{
+  "id": "asfWf07YTPublish",
+  "name": "07 YouTube Publisher",
+  "nodes": [
+    {
+      "id": "23f42485-c214-5a4c-bfeb-45853425b29c",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "be127d21-6de3-537f-83ce-2ad879034050",
+      "name": "Manual webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        440
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asf-publish",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "55bf5cd9-6714-5662-8c91-2eeadeaebe53",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfWebhookKey001",
+          "name": "n8n Webhook Key"
+        }
+      }
+    },
+    {
+      "id": "433d9f38-5e77-5449-b03a-0114e953b883",
+      "name": "Should run?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://factory-api:8000/api/should-run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "workflow",
+              "value": "publish"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "3764c234-7556-5357-9cb6-d985968664f3",
+      "name": "Automation on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "85b5eceb-6561-4ec3-8e7a-50f9d375a930",
+              "leftValue": "={{ $json.run }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "3d2246a7-3832-5407-9f40-d547d9066994",
+      "name": "YouTube connected?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        440
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/youtube/v3/channels",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "id,snippet"
+            },
+            {
+              "name": "mine",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "038e6103-d826-53a8-b993-f809b0393843",
+      "name": "Channel OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        440
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f22ef7a2-c9a2-4442-b977-495942a913b4",
+              "leftValue": "={{ $json.statusCode === 200 && ($json.body?.items?.length || 0) > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "b9139ae7-8bcf-566b-b5e5-a96e713f3ea1",
+      "name": "Log: YouTube not connected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        560
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/errors",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'youtube-publisher', message: 'YouTube bağlantısı yok veya yetkisiz: ' + ($json.error?.message || ('HTTP ' + $json.statusCode + ' ' + JSON.stringify($json.body || {}).slice(0, 300))) }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "7a9f43d4-9e4e-5c16-a6c9-6e0d57c3f882",
+      "name": "Claim approved video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/publish/claim",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "aed3c410-94d7-52d6-a153-1d0bb49beedb",
+      "name": "Has job?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d4e8cd66-138f-4e8d-8191-9f588812868c",
+              "leftValue": "={{ !!$json.job_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "9980e075-645b-55b3-9b46-3942986347fd",
+      "name": "Read MP4",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        320
+      ],
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "=/data/{{ $json.file_path }}",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      }
+    },
+    {
+      "id": "5add836f-60f8-59be-b0d2-228abef9432f",
+      "name": "YouTube: start resumable upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/upload/youtube/v3/videos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "uploadType",
+              "value": "resumable"
+            },
+            {
+              "name": "part",
+              "value": "snippet,status"
+            },
+            {
+              "name": "notifySubscribers",
+              "value": "false"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Upload-Content-Type",
+              "value": "video/mp4"
+            },
+            {
+              "name": "X-Upload-Content-Length",
+              "value": "={{ $('Claim approved video').item.json.file_size }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Claim approved video').item.json.metadata) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "3e807b36-6872-5a31-82eb-78aec5021b73",
+      "name": "Session created?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee9a9622-0c0f-42fd-b5d6-c58cc68c94b4",
+              "leftValue": "={{ $json.statusCode === 200 && !!$json.headers.location }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "bed56ed7-a552-5538-a465-7c610ad25772",
+      "name": "YouTube: upload bytes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        260
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.headers.location }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "video/mp4"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 1800000
+        }
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "6e9d55ba-8c95-5144-a6aa-f0c5d45c9736",
+      "name": "Attach binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1650,
+        160
+      ],
+      "parameters": {
+        "jsCode": "const loc = $input.first().json.headers.location;\nconst bin = $('Read MP4').first().binary;\nreturn [{ json: { headers: { location: loc } }, binary: bin }];"
+      }
+    },
+    {
+      "id": "1e67cb02-dffc-5d59-aa07-311791d51939",
+      "name": "Build result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        320
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst job = $('Claim approved video').first().json.job_id;\nconst ok = r.statusCode >= 200 && r.statusCode < 300 && r.body && r.body.id;\nreturn [{ json: { job_id: job, success: !!ok, youtube_video_id: ok ? r.body.id : null,\n  response: (typeof r.body === 'object') ? r.body : { raw: String(r.body).slice(0, 2000) },\n  error: ok ? null : `HTTP ${r.statusCode}: ${JSON.stringify(r.body).slice(0, 1500)}` } }];"
+      }
+    },
+    {
+      "id": "2771d002-f3f6-596b-a36f-f36e70cd71fb",
+      "name": "Session failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst job = $('Claim approved video').first().json.job_id;\nreturn [{ json: { job_id: job, success: false, youtube_video_id: null, response: r.body || {},\n  error: `upload session HTTP ${r.statusCode}: ${JSON.stringify(r.body).slice(0, 1500)}` } }];"
+      }
+    },
+    {
+      "id": "704e11a3-3b2e-54db-829a-968862286e18",
+      "name": "Report to factory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://factory-api:8000/api/publish/{{ $json.job_id }}/result",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ success: $json.success, youtube_video_id: $json.youtube_video_id, response: $json.response, error: $json.error }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "05cd7f8e-276b-5290-8a7a-5e406cfaef5d",
+      "name": "Log run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4320,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/workflow-runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: \"publish\", status: \"success\", execution_id: $execution.id, detail: $json }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Should run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should run?": {
+      "main": [
+        [
+          {
+            "node": "Automation on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Automation on?": {
+      "main": [
+        [
+          {
+            "node": "YouTube connected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual webhook": {
+      "main": [
+        [
+          {
+            "node": "YouTube connected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube connected?": {
+      "main": [
+        [
+          {
+            "node": "Channel OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channel OK?": {
+      "main": [
+        [
+          {
+            "node": "Claim approved video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: YouTube not connected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim approved video": {
+      "main": [
+        [
+          {
+            "node": "Has job?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has job?": {
+      "main": [
+        [
+          {
+            "node": "Read MP4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read MP4": {
+      "main": [
+        [
+          {
+            "node": "YouTube: start resumable upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: start resumable upload": {
+      "main": [
+        [
+          {
+            "node": "Session created?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session created?": {
+      "main": [
+        [
+          {
+            "node": "Attach binary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Session failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach binary": {
+      "main": [
+        [
+          {
+            "node": "YouTube: upload bytes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: upload bytes": {
+      "main": [
+        [
+          {
+            "node": "Build result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build result": {
+      "main": [
+        [
+          {
+            "node": "Report to factory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session failed": {
+      "main": [
+        [
+          {
+            "node": "Report to factory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report to factory": {
+      "main": [
+        [
+          {
+            "node": "Log run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Europe/Istanbul",
+    "errorWorkflow": "asfWf10ErrorMon0"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "versionId": "a073f40a-8fb5-5e85-a88d-918a4c3a817d"
+}
