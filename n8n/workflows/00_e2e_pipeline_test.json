@@ -45,7 +45,7 @@
           },
           "conditions": [
             {
-              "id": "f05b70e3-da9f-4c44-9729-403a9a019709",
+              "id": "22f7e4f8-7bab-5474-bb7c-08baac6dbf3c",
               "leftValue": "={{ !!$json.body.video_id }}",
               "rightValue": "",
               "operator": {
@@ -80,7 +80,7 @@
           },
           "conditions": [
             {
-              "id": "83813bee-7ad6-4cd5-8dfd-16895057b48f",
+              "id": "dbacf596-fb3e-52c6-a13b-d4fb9330aff9",
               "leftValue": "={{ !!$json.body.script }}",
               "rightValue": "",
               "operator": {
@@ -247,7 +247,7 @@
           },
           "conditions": [
             {
-              "id": "3352b004-4152-4b9a-bd47-3a92360d03d4",
+              "id": "83c196b2-8b81-552c-b732-e00f31b26d4a",
               "leftValue": "={{ $json.done }}",
               "rightValue": "",
               "operator": {
@@ -385,7 +385,7 @@
           },
           "conditions": [
             {
-              "id": "5922c30e-99f7-4da9-840f-2298e2096b3c",
+              "id": "83c196b2-8b81-552c-b732-e00f31b26d4a",
               "leftValue": "={{ $json.done }}",
               "rightValue": "",
               "operator": {

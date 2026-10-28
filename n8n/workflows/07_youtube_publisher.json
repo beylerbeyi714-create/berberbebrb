@@ -99,7 +99,7 @@
           },
           "conditions": [
             {
-              "id": "762e853a-5695-4300-a445-6b59d113029f",
+              "id": "4df83b22-0734-5ac8-8e7c-9a897bca4a6b",
               "leftValue": "={{ $json.run }}",
               "rightValue": "",
               "operator": {
@@ -179,7 +179,7 @@
           },
           "conditions": [
             {
-              "id": "9ac3e771-1008-4e45-b285-d833f94fa308",
+              "id": "68e89435-7f3f-5a1a-a712-549842a042df",
               "leftValue": "={{ $json.statusCode === 200 && ($json.body?.items?.length || 0) > 0 }}",
               "rightValue": "",
               "operator": {
@@ -267,7 +267,7 @@
           },
           "conditions": [
             {
-              "id": "4c47baf3-7cef-4871-8af3-52591d14f90e",
+              "id": "b044e68b-6273-5ab6-aeb1-bfbb73d9330b",
               "leftValue": "={{ !!$json.job_id }}",
               "rightValue": "",
               "operator": {
@@ -383,7 +383,7 @@
           },
           "conditions": [
             {
-              "id": "2ea29b7a-56cf-48b8-8b32-8e21f8d56285",
+              "id": "a498a156-1de4-57ae-acb6-52ec675910ac",
               "leftValue": "={{ $json.statusCode === 200 && !!$json.headers.location }}",
               "rightValue": "",
               "operator": {

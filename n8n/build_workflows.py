@@ -79,7 +79,7 @@ def schedule(rule):
 def cond_bool(expr):
     return {"conditions": {"options": {"caseSensitive": True, "leftValue": "", "typeValidation": "loose",
                                        "version": 2},
-                           "conditions": [{"id": str(uuid.uuid4()), "leftValue": expr, "rightValue": "",
+                           "conditions": [{"id": str(uuid.uuid5(uuid.NAMESPACE_URL, expr)), "leftValue": expr, "rightValue": "",
                                            "operator": {"type": "boolean", "operation": "true",
                                                         "singleValue": True}}],
                            "combinator": "and"}, "options": {}, "looseTypeValidation": True}
