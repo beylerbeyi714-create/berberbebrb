@@ -21,5 +21,10 @@ fi
 
 mkdir -p data/media data/renders data/backups data/tmp
 # factory-api, video-worker ve n8n konteynerleri uid 1000 ile çalışır
-chown -R 1000:1000 data 2>/dev/null || sudo chown -R 1000:1000 data
+if [[ $(uname) == Darwin ]]; then
+  # macOS (Docker Desktop): sahiplik eşlenmez; klasörün yazılabilir olması yeterli
+  chmod -R a+rwX data 2>/dev/null || sudo chmod -R a+rwX data
+else
+  chown -R 1000:1000 data 2>/dev/null || sudo chown -R 1000:1000 data
+fi
 echo "Sonraki adım: scripts/set_panel_password.sh  ardından  docker compose up -d --build"

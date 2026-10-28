@@ -12,6 +12,7 @@
 | YouTube `403 quotaExceeded` | Günlük kota | Ertesi gün (Pasifik saatiyle gece yarısı) sıfırlanır; Console'dan kota artışı isteyin |
 | YouTube `403 forbidden` / video "kilitli gizli" | API projesi denetlenmemiş | YouTube API denetim formunu doldurun |
 | n8n/panel günlüğünde `password authentication failed for user "n8n"` (veya `factory`) | Veritabanı kullanıcıları eksik ya da `.env` yeniden üretilmiş | `docker compose up -d` — `db-init` servisi her başlangıçta kullanıcıları oluşturur ve şifreleri `.env` ile eşitler; sonra `docker compose restart n8n factory-api` |
+| factory-api günlüğünde `PermissionError: ... '/data/media/...'` | `data` klasörüne konteyner yazamıyor (özellikle macOS) | macOS: `sudo chmod -R a+rwX data` · Linux: `sudo chown -R 1000:1000 data` |
 | n8n girişinde "Set up owner account" ekranı çıkıyor | Sahip hesabı oluşmamış | Formu doldurun veya `scripts/n8n_bootstrap.sh`'i e-posta/şifreyle tekrar çalıştırın |
 | n8n açılmıyor, günlükte `address '::' is not available` | Docker ağında IPv6 yok | Compose'da `N8N_LISTEN_ADDRESS: 0.0.0.0` (zaten ayarlı) |
 | Video `rendering` aşamasında takıldı | video-worker yeniden başladı, iş kayboldu | `05 Video Renderer` bir sonraki çalışmada işi yeniden kuyruğa alır; `10 Error Monitoring` 45 dk sonra takılanları kurtarır |
