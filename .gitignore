@@ -5,3 +5,4 @@ data/
 __pycache__/
 *.pyc
 n8n/credentials*.json
+dist/
