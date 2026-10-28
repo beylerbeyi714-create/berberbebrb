@@ -10,11 +10,11 @@ else
   cp .env.example .env
   gen() { openssl rand -hex "${1:-24}"; }
   for k in POSTGRES_PASSWORD N8N_DB_PASSWORD FACTORY_DB_PASSWORD FACTORY_API_TOKEN WORKER_API_TOKEN N8N_WEBHOOK_TOKEN; do
-    sed -i "s|^$k=.*|$k=$(gen 24)|" .env
+    sed -i.bak "s|^$k=.*|$k=$(gen 24)|" .env
   done
-  sed -i "s|^N8N_ENCRYPTION_KEY=.*|N8N_ENCRYPTION_KEY=$(gen 32)|" .env
-  sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$(gen 32)|" .env
-  chmod 600 .env
+  sed -i.bak "s|^N8N_ENCRYPTION_KEY=.*|N8N_ENCRYPTION_KEY=$(gen 32)|" .env
+  sed -i.bak "s|^SESSION_SECRET=.*|SESSION_SECRET=$(gen 32)|" .env
+  rm -f .env.bak && chmod 600 .env
   echo ".env oluşturuldu (izin 600). N8N_ENCRYPTION_KEY değerini güvenli bir yere yedekleyin:"
   echo "bu anahtar kaybolursa n8n'deki kimlik bilgileri (YouTube OAuth dahil) çözülemez."
 fi
