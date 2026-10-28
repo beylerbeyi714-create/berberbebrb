@@ -90,7 +90,7 @@
           },
           "conditions": [
             {
-              "id": "6d9d0a6e-94ff-40fb-aca0-cf53dcdf5729",
+              "id": "702bf271-ac1e-4351-8d0d-085714073dde",
               "leftValue": "={{ $json.targets.length > 0 }}",
               "rightValue": "",
               "operator": {

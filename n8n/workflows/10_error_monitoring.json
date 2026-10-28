@@ -105,7 +105,7 @@
           },
           "conditions": [
             {
-              "id": "054ab128-4c8c-4404-b5a0-fc5c0474a6b9",
+              "id": "372878dc-2a23-47a8-aa51-4f00ffbcf2c9",
               "leftValue": "={{ $json.alerts.length > 0 }}",
               "rightValue": "",
               "operator": {

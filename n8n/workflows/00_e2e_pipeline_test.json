@@ -45,7 +45,7 @@
           },
           "conditions": [
             {
-              "id": "8f13651a-b28f-4fe7-a531-2f0a83d37d42",
+              "id": "f05b70e3-da9f-4c44-9729-403a9a019709",
               "leftValue": "={{ !!$json.body.video_id }}",
               "rightValue": "",
               "operator": {
@@ -80,7 +80,7 @@
           },
           "conditions": [
             {
-              "id": "42f64595-6b14-4db5-98f0-868372d9c613",
+              "id": "83813bee-7ad6-4cd5-8dfd-16895057b48f",
               "leftValue": "={{ !!$json.body.script }}",
               "rightValue": "",
               "operator": {
@@ -247,7 +247,7 @@
           },
           "conditions": [
             {
-              "id": "40247c39-6f63-4a94-b8d4-dee86f62d3c0",
+              "id": "3352b004-4152-4b9a-bd47-3a92360d03d4",
               "leftValue": "={{ $json.done }}",
               "rightValue": "",
               "operator": {
@@ -385,7 +385,7 @@
           },
           "conditions": [
             {
-              "id": "d9ebc99f-4b4a-4879-bc32-f9cccf1523fb",
+              "id": "5922c30e-99f7-4da9-840f-2298e2096b3c",
               "leftValue": "={{ $json.done }}",
               "rightValue": "",
               "operator": {

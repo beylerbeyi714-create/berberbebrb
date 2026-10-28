@@ -13,8 +13,15 @@ N8N=http://127.0.0.1:5678
 
 until curl -sf $N8N/healthz >/dev/null; do sleep 2; done
 
-# 1) owner
-if curl -s $N8N/rest/settings | grep -q '"showSetupOnFirstLoad":true'; then
+# 1) owner — healthz erken "ok" der; ayarlar API'si gerçekten cevap verene kadar bekle
+SETUP=""
+for _ in $(seq 1 90); do
+  SETUP=$(curl -sf $N8N/rest/settings | grep -o '"showSetupOnFirstLoad":[a-z]*' || true)
+  [[ -n $SETUP ]] && break
+  sleep 2
+done
+[[ -n $SETUP ]] || { echo "n8n ayarlarına ulaşılamadı: docker compose logs n8n --tail 30"; exit 1; }
+if [[ $SETUP == '"showSetupOnFirstLoad":true' ]]; then
   : "${N8N_OWNER_EMAIL:?N8N_OWNER_EMAIL gerekli}"; : "${N8N_OWNER_PASSWORD:?N8N_OWNER_PASSWORD gerekli (min 8, büyük harf + rakam)}"
   body=$(python3 -c 'import json,os;print(json.dumps({"email":os.environ["N8N_OWNER_EMAIL"],"firstName":"Shorts","lastName":"Factory","password":os.environ["N8N_OWNER_PASSWORD"]}))')
   code=$(curl -s -o /dev/null -w '%{http_code}' -X POST $N8N/rest/owner/setup -H 'Content-Type: application/json' -d "$body")
