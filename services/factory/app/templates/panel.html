@@ -9,6 +9,7 @@
   <nav id="tabs">
     <button data-tab="overview" class="active">Genel</button>
     <button data-tab="videos">Videolar</button>
+    <button data-tab="series">Seriler</button>
     <button data-tab="ideas">Fikir kuyruğu</button>
     <button data-tab="calendar">Yayın takvimi</button>
     <button data-tab="costs">Maliyet</button>
@@ -61,6 +62,54 @@
     <table id="video-table"><thead><tr><th>Başlık</th><th>Aşama</th><th>Süre</th><th>Maliyet</th><th>QC</th><th>YouTube</th><th></th></tr></thead><tbody></tbody></table>
   </div>
   <div class="card" id="video-detail" hidden></div>
+</section>
+
+<section id="series" class="tab">
+  <div class="card"><h2>Seriler</h2>
+    <p class="muted">Her video bir serinin bölümüdür: “Bölüm N” girişiyle başlar, “devamı” kapanışıyla biter;
+      bölümler sırayla yüklenir ve serinin oynatma listesine eklenir.</p>
+    <table id="series-table"><thead><tr><th>Seri</th><th>Tür</th><th>Durum</th><th>Bölüm</th><th>Yüklenen</th><th>Liste</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="card"><h2>Yeni seri</h2>
+    <form id="series-form" class="settings">
+      <label>Seri adı<input name="title" required maxlength="80" placeholder="Örn: Felix'in Maceraları"></label>
+      <label>Tür<select name="kind"><option value="pd_clips">Kaynak film (kamu malı / lisanslı) kesitleri</option>
+        <option value="original">Özgün yapay zekâ serisi</option></select></label>
+      <label>Kaynak film (yalnızca kesit serisi)<select name="source_id"></select></label>
+      <label>Yayında tutulacak hazır bölüm<input name="buffer_size" type="number" min="1" max="5" value="2"></label>
+      <label style="grid-column:1/-1">Açıklama (her bölümün açıklamasına eklenir)<input name="description"></label>
+      <label style="grid-column:1/-1">Özgün seri tarifi (konu, format, görsel stil)<input name="brief"
+        placeholder="Örn: Dünya çizgi filmlerini tanıtan seri; her bölüm bir çizgi filmin ülkesi, çıkış hikâyesi ve ilginç bir bilgisi"></label>
+      <label class="chk"><input type="checkbox" name="narration" checked> Kartlarda Türkçe seslendirme</label>
+      <label class="chk"><input type="checkbox" name="keep_source_audio" checked> Filmin kendi sesini kullan</label>
+      <label>Arka plan müziği (data/music/ içindeki dosya)<input name="music_file" placeholder="neseli_piyano.mp3"></label>
+      <label>Müzik lisans bağlantısı<input name="music_license_url" type="url" placeholder="YouTube Ses Kitaplığı sayfası"></label>
+      <label class="chk" style="grid-column:1/-1"><input type="checkbox" name="music_confirmed">
+        Müziği YouTube Ses Kitaplığı'ndan (veya lisansla) aldım; YouTube videolarında kullanılabilir.</label>
+      <p class="muted" style="grid-column:1/-1">Sessiz film için öneri: seslendirme <b>kapalı</b>, filmin sesi <b>kapalı</b>
+        (sonradan eklenmiş müziklerin lisansı belirsiz olabilir), arka plan müziği <b>seçili</b>, kaynakta Türkçe altyazı dosyası.</p>
+      <label class="chk" style="grid-column:1/-1"><input type="checkbox" name="made_for_kids">
+        Çocuklara özel (izleyicisi çocuklar olan içerik için YouTube'da yasal olarak zorunlu; yorumlar ve kişisel reklamlar kapanır)</label>
+      <button type="submit">Seriyi oluştur</button> <span id="series-msg" class="muted"></span>
+    </form></div>
+  <div class="card"><h2>Kaynak filmler (kamu malı / lisanslı)</h2>
+    <p class="muted">Dosyayı bilgisayarınızda <code>ai-shorts-factory/data/sources/</code> klasörüne koyun, sonra burada kaydedin.
+      Lisans kanıtı (ör. archive.org sayfasındaki kamu malı işareti) olmayan kaynaktan üretilen bölümler kalite kontrolden geçmez.</p>
+    <form id="source-form" class="settings">
+      <label>Dosya adı<input name="file_name" required placeholder="felix_1928.mp4"></label>
+      <label>Film adı<input name="title" required></label>
+      <label>Lisans<select name="license_kind"><option value="public_domain">Kamu malı (Public Domain)</option>
+        <option value="cc">Creative Commons</option><option value="licensed">Yazılı izin / lisans</option></select></label>
+      <label>Lisans adı (isteğe bağlı)<input name="license_name" placeholder="ör. CC BY 4.0"></label>
+      <label>Kaynak sayfası<input name="source_url" type="url" placeholder="https://archive.org/details/..."></label>
+      <label>Lisans kanıtı bağlantısı<input name="proof_url" type="url" required></label>
+      <label>Türkçe altyazı dosyası (isteğe bağlı, .srt)<input name="subtitle_file" placeholder="felix_1928.tr.srt"></label>
+      <label class="chk" style="grid-column:1/-1"><input type="checkbox" name="confirmed">
+        Bu filmin kamu malı / lisanslı olduğunu kendim kontrol ettim; kanıt bağlantısı bunu gösteriyor.</label>
+      <button type="submit">Kaynağı kaydet ve bölümlere ayır</button> <span id="source-msg" class="muted"></span>
+    </form>
+    <table id="source-table"><thead><tr><th>Film</th><th>Süre</th><th>Bölüm</th><th>Altyazı</th><th>Lisans</th></tr></thead><tbody></tbody></table>
+  </div>
 </section>
 
 <section id="ideas" class="tab">

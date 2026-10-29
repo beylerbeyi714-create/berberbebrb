@@ -19,7 +19,7 @@ else
   echo "bu anahtar kaybolursa n8n'deki kimlik bilgileri (YouTube OAuth dahil) çözülemez."
 fi
 
-mkdir -p data/media data/renders data/backups data/tmp
+mkdir -p data/media data/renders data/backups data/tmp data/sources data/music
 # factory-api, video-worker ve n8n konteynerleri uid 1000 ile çalışır
 if [[ $(uname) == Darwin ]]; then
   # macOS (Docker Desktop): sahiplik eşlenmez; klasörün yazılabilir olması yeterli

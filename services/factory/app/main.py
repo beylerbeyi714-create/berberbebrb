@@ -16,7 +16,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import analytics, budget, config, db, pipeline, providers
+from . import analytics, budget, config, db, pipeline, providers, series
 from .providers import ProviderError, ProviderNotConfigured
 
 
@@ -147,7 +147,7 @@ def should_run(workflow: str, _=Depends(require_auth)):
     enabled = bool(db.get_setting("automation_enabled", False))
     target = int(db.get_setting("daily_video_target", 3))
     made = db.one("SELECT count(*) c FROM videos WHERE created_at >= date_trunc('day', now())")["c"]
-    run = enabled and (workflow not in ("research", "script") or made < target)
+    run = enabled and (workflow not in ("research", "script", "series") or made < target)
     reason = "otomasyon kapalı" if not enabled else (
         f"günlük hedef doldu ({made}/{target})" if not run else "ok")
     return {"run": run, "reason": reason, "made_today": made, "target": target}
@@ -209,12 +209,107 @@ def manual_script(body: ManualScript, who=Depends(require_auth)):
                                 body.content_mode)
 
 
+# ------------------------------------------------------------------ seriler ve kaynak filmler
+class SourceIn(BaseModel):
+    file_name: str                      # data/sources/ altındaki dosya adı
+    title: str
+    license_kind: str                   # public_domain | cc | licensed
+    license_name: str | None = None
+    source_url: str | None = None
+    proof_url: str | None = None        # lisans kanıtı (kamu malı işareti, CC sayfası, izin belgesi)
+    confirmed: bool = False             # "lisansı kendim kontrol ettim" onayı
+    notes: str | None = None
+    subtitle_file: str | None = None    # data/sources/ altındaki Türkçe .srt (filmin tamamı için)
+
+
+@app.get("/api/sources")
+def get_sources(_=Depends(require_auth)):
+    return series.list_sources()
+
+
+@app.post("/api/sources")
+def post_source(body: SourceIn, who=Depends(require_auth)):
+    if who == "n8n":
+        raise HTTPException(403, "kaynak lisansı yalnızca panelden onaylanabilir")
+    return series.register_source(body.file_name, body.title, body.license_kind, body.source_url, body.proof_url,
+                                  body.confirmed, who, body.license_name, body.notes, body.subtitle_file)
+
+
+class SeriesIn(BaseModel):
+    title: str
+    kind: str                           # pd_clips | original
+    description: str = ""
+    source_id: str | None = None
+    brief: str | None = None
+    made_for_kids: bool = False
+    buffer_size: int = 2
+    narration: bool = True              # kartlarda Türkçe seslendirme
+    keep_source_audio: bool = True      # filmin kendi sesi
+    music_file: str | None = None       # data/music/ altındaki lisanslı parça
+    music_license_url: str | None = None
+    music_confirmed: bool = False
+
+
+@app.get("/api/series")
+def get_series(_=Depends(require_auth)):
+    return series.list_series()
+
+
+@app.post("/api/series")
+def post_series(body: SeriesIn, who=Depends(require_auth)):
+    if body.music_file and who == "n8n":
+        raise HTTPException(403, "müzik lisansı yalnızca panelden onaylanabilir")
+    return series.create_series(body.title, body.kind, body.description, body.source_id, body.brief,
+                                body.made_for_kids, body.buffer_size, db.get_setting("language", "tr"),
+                                body.narration, body.keep_source_audio, body.music_file, body.music_license_url,
+                                body.music_confirmed, who)
+
+
+@app.post("/api/series/run")
+def series_run(_=Depends(require_auth)):
+    return series.run_batch()
+
+
+@app.post("/api/series/{series_id}/next")
+def series_next(series_id: str, _=Depends(require_auth)):
+    return series.next_episode(series_id)
+
+
+class ManualEpisode(BaseModel):
+    script: dict
+
+
+@app.post("/api/series/{series_id}/episodes")
+def series_manual_episode(series_id: str, body: ManualEpisode, who=Depends(require_auth)):
+    return series.add_manual_episode(series_id, body.script, who)
+
+
+class StatusIn(BaseModel):
+    status: str
+
+
+@app.post("/api/series/{series_id}/status")
+def series_status(series_id: str, body: StatusIn, _=Depends(require_auth)):
+    series.set_status(series_id, body.status)
+    return {"ok": True}
+
+
+class PlaylistIn(BaseModel):
+    playlist_id: str
+
+
+@app.post("/api/series/{series_id}/playlist")
+def series_playlist(series_id: str, body: PlaylistIn, _=Depends(require_auth)):
+    return series.set_playlist(series_id, body.playlist_id)
+
+
 # ------------------------------------------------------------------ videolar ve adımlar
 @app.get("/api/videos")
 def list_videos(stage: str | None = None, _=Depends(require_auth)):
     q = ("SELECT v.id, v.topic, v.stage, v.publish_status, v.duration_sec, v.cost_usd, v.qc_passed, v.youtube_url, "
-         "v.scheduled_at, v.published_at, v.last_error, v.created_at, s.title FROM videos v "
-         "JOIN scripts s ON s.id=v.script_id")
+         "v.scheduled_at, v.published_at, v.last_error, v.created_at, s.title, v.episode_number, "
+         "sr.title AS series_title FROM videos v JOIN scripts s ON s.id=v.script_id "
+         "LEFT JOIN series sr ON sr.id=v.series_id")
     return db.all_(q + (" WHERE v.stage=%s" if stage else "") + " ORDER BY v.created_at DESC LIMIT 200",
                    (stage,) if stage else None)
 

@@ -536,6 +536,299 @@
           "name": "Factory API Key"
         }
       }
+    },
+    {
+      "id": "afae16f9-a7ca-5e78-b593-b4826036d2c0",
+      "name": "Series episode?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2200,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5af35fb0-bc54-505c-9cf3-bc1f40b3cea1",
+              "leftValue": "={{ $json.success && !!$('Claim approved video').first().json.series }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "10ad91f8-d3ac-58be-861f-bc4377290f61",
+      "name": "Has playlist?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2420,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d91bd27a-c5e4-5691-ae72-6bf34494d311",
+              "leftValue": "={{ !!$('Claim approved video').first().json.series.playlist_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "c0de855d-000c-5cb3-99f0-fbf2e74d9e2d",
+      "name": "YouTube: create playlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/youtube/v3/playlists",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,status"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Claim approved video').first().json.series.playlist_body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "de6159d4-76e1-5860-aab6-a2d045289f93",
+      "name": "Save playlist id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://factory-api:8000/api/series/{{ $('Claim approved video').first().json.series.id }}/playlist",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ playlist_id: $json.body.id }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
+    },
+    {
+      "id": "2a1db334-14a0-5657-8a2b-4eaacbb3ef7c",
+      "name": "Add to existing playlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        40
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/youtube/v3/playlistItems",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ snippet: { playlistId: $('Claim approved video').first().json.series.playlist_id, resourceId: { kind: 'youtube#video', videoId: $('Build result').first().json.youtube_video_id } } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "5bf3913c-6d88-5b7b-9387-cecafec279ad",
+      "name": "Add to new playlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3080,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/youtube/v3/playlistItems",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ snippet: { playlistId: $json.playlist_id, resourceId: { kind: 'youtube#video', videoId: $('Build result').first().json.youtube_video_id } } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "asfYouTubeOAu001",
+          "name": "YouTube OAuth2 (AI Shorts Factory)"
+        }
+      }
+    },
+    {
+      "id": "62e7bfdb-5e55-5116-8810-d66ebf0fc150",
+      "name": "Playlist OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3300,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2a1f9f9-8703-565a-8b30-49081e07450b",
+              "leftValue": "={{ $json.statusCode >= 200 && $json.statusCode < 300 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {},
+        "looseTypeValidation": true
+      }
+    },
+    {
+      "id": "ba3b60f8-e014-556a-b05a-6be8210de5d5",
+      "name": "Log playlist error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3520,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://factory-api:8000/api/errors",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'youtube-playlist', video_id: $('Claim approved video').first().json.video_id, message: 'Oynatma listesine eklenemedi (video yüklendi): ' + ($json.error?.message || ('HTTP ' + $json.statusCode + ' ' + JSON.stringify($json.body || {}).slice(0, 300))) }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "asfFactoryKey001",
+          "name": "Factory API Key"
+        }
+      }
     }
   ],
   "connections": {
@@ -703,6 +996,11 @@
             "node": "Report to factory",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Series episode?",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -723,6 +1021,91 @@
         [
           {
             "node": "Log run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Series episode?": {
+      "main": [
+        [
+          {
+            "node": "Has playlist?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has playlist?": {
+      "main": [
+        [
+          {
+            "node": "Add to existing playlist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "YouTube: create playlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: create playlist": {
+      "main": [
+        [
+          {
+            "node": "Save playlist id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save playlist id": {
+      "main": [
+        [
+          {
+            "node": "Add to new playlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to existing playlist": {
+      "main": [
+        [
+          {
+            "node": "Playlist OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to new playlist": {
+      "main": [
+        [
+          {
+            "node": "Playlist OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Playlist OK?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Log playlist error",
             "type": "main",
             "index": 0
           }

@@ -87,3 +87,33 @@ def test_image_dhash_detects_duplicates_not_different(tmp_path):
     dist = lambda x, y: sum(c1 != c2 for c1, c2 in zip(x, y))
     assert dist(ha, hab) <= 10
     assert dist(ha, hb) > 10
+
+
+def test_plan_segments_cuts_at_scene_changes_within_limits():
+    from app import series
+    cuts = [13, 24, 36, 48, 58, 71, 83]
+    segs = series.plan_segments(95.0, cuts)
+    assert segs[0]["start"] == 0 and segs[-1]["end"] == 95.0
+    assert all(series.CLIP_MIN <= s["end"] - s["start"] <= series.CLIP_MAX + 2 for s in segs)
+    assert all(s["end"] in cuts for s in segs[:-1])                       # sahne ortasından kesilmez
+    assert all(a["end"] == b["start"] for a, b in zip(segs, segs[1:]))   # boşluksuz, ardışık
+
+
+def test_plan_segments_without_cuts_and_short_tail():
+    from app import series
+    segs = series.plan_segments(60.0, [])
+    assert [round(s["end"] - s["start"]) for s in segs] == [26, 34]     # kısa kuyruk öncekine eklenir
+    assert series.plan_segments(3.0, []) == [{"start": 0.0, "end": 3.0}]
+
+
+def test_parse_srt_and_shift_into_episode(tmp_path, monkeypatch):
+    from app import config
+    monkeypatch.setattr(config, "MEDIA_ROOT", tmp_path)
+    (tmp_path / "sources").mkdir()
+    (tmp_path / "sources" / "f.srt").write_text(
+        "1\n00:00:02,000 --> 00:00:05,500\nBir varmış\n\n2\n00:00:23,000 --> 00:00:27,000\nAma balık kurnaz!\n\n"
+        "3\n00:01:20,000 --> 00:01:24,000\nSON\n", encoding="utf-8")
+    assert len(pipeline.parse_srt((tmp_path / "sources" / "f.srt").read_text())) == 3
+    sc = {"kind": "source_clip", "source": {"start": 0.0, "end": 24.0, "subtitles": "sources/f.srt"}}
+    cues = pipeline.source_cues(sc, scene_start=3.0)
+    assert cues == [(5.0, 8.5, "Bir varmış"), (26.0, 27.0, "Ama balık kurnaz!")]   # kart süresi kadar kaydı, kesitle sınırlı

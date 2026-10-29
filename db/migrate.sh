@@ -17,6 +17,9 @@ SELECT 'CREATE DATABASE n8n OWNER n8n' WHERE NOT EXISTS (SELECT 1 FROM pg_databa
 SELECT 'CREATE DATABASE factory OWNER factory' WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'factory') \gexec
 SQL
 
-PGPASSWORD="$FACTORY_DB_PASSWORD" PGOPTIONS='-c client_min_messages=warning' \
-  psql -q -h "$H" -U factory -d factory -v ON_ERROR_STOP=1 -f /db/001_schema.sql
+# numaralı şema dosyaları sırayla (hepsi idempotent)
+for f in /db/[0-9][0-9][0-9]_*.sql; do
+  PGPASSWORD="$FACTORY_DB_PASSWORD" PGOPTIONS='-c client_min_messages=warning' \
+    psql -q -h "$H" -U factory -d factory -v ON_ERROR_STOP=1 -f "$f"
+done
 echo "veritabanı hazır"

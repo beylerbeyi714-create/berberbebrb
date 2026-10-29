@@ -68,10 +68,11 @@ TLS denetimli bir proxy arkasında derleme yapıyorsanız: `HTTPS_PROXY=... EXTR
 | 03 | AI Media Generator | 5 dk | görsel/video üretimi, iş kimlikleri, yoklama, sınırlı tekrar deneme |
 | 04 | Voice And Subtitles | 5 dk | sahne başına TTS, süre ölçümü, zamanlamalı SRT |
 | 05 | Video Renderer | 3 dk | video-worker'a render işi, durum takibi |
-| 06 | Quality Control | 5 dk | 12 kontrol (aşağıda) |
+| 06 | Quality Control | 5 dk | 13 kontrol (aşağıda) |
 | 07 | YouTube Publisher | 30 dk + webhook `asf-publish` | kanal bağlantı kontrolü → onaylı videoyu kilitle → resumable upload (gizli) → sonucu kaydet |
 | 08 | Analytics Collector | her gün 03:20 | Data API istatistikleri + Analytics API (izlenme süresi, tutma, abone, trafik) |
 | 09 | Performance Optimizer | Pazartesi 04:40 | kategori/başlık/giriş karşılaştırması, yeterli veri varsa yeni fikirler |
+| 11 | Series Episode Planner | saatlik | aktif serilerde yayın bekleyen bölüm tamponunu doldurur |
 | 10 | Error Monitoring | hata tetikleyici + saatlik | tüm iş akışı hatalarını kaydeder; maliyet/kota/takılan iş uyarıları |
 
 Zamanlanmış akışlar her çalışmada `GET /api/should-run` sorar: **otomasyon kapalıysa (varsayılan) hiçbir şey üretmez**;
@@ -82,7 +83,7 @@ araştırma/senaryo günlük video hedefine ulaşınca durur. Webhook ile elle t
 - **Yayın öncesi onay:** onay/ret yalnızca panel oturumuyla yapılır; n8n anahtarı onay veremez (403).
 - **Varsayılan gizli yükleme.** Herkese açık/zamanlanmış yayın yalnızca Panel'de *Herkese açık yayına izin ver*
   açıkken ve QC `public_eligible` ise yapılır. Test varlıklarıyla (yerel kart/espeak) üretilen videolar asla herkese açık yayınlanmaz.
-- **QC'den kalan video yayınlanmaz**; QC kontrolleri: açılabilirlik, ses varlığı/seviyesi, altyazı, 9:16, görüntü-ses senkronu,
+- **QC'den kalan video yayınlanmaz**; QC kontrolleri: açılabilirlik, tüm karelerin hatasız çözülmesi (bozuk görüntü taraması), ses varlığı/seviyesi, altyazı, 9:16, görüntü-ses senkronu,
   süre aralığı, siyah kare, tekrar eden sahne (kaynak görsel hash'i), benzersiz çıktı, lisans kayıtları, kaynaklar, metadata.
 - **Tekrar önleme:** fikir (normalize hash + benzerlik), senaryo (içerik hash'i), video (senaryo başına bir), render (iş tekilleştirme),
   yükleme (`youtube_video_id` UNIQUE + aktif iş için kısmi UNIQUE indeks + `FOR UPDATE SKIP LOCKED`).
@@ -113,9 +114,16 @@ Günlük video hedefi (3), dil (tr), kategoriler, süre aralığı (20–45 sn),
 tekrar deneme (3), içerik modu (A/B), yükleme gizliliği (gizli), herkese açık yayın izni (kapalı),
 manuel onay (açık), sağlayıcılar. Hepsi `settings` tablosunda.
 
+## Seriler (ardışık bölümler)
+
+Her video bir serinin bölümü olabilir: "Bölüm N" girişi, "devamı ▶" kapanışı, açıklamada önceki bölüm bağlantısı,
+otomatik oynatma listesi ve sıralı yayın. Kamu malı / lisanslı filmler sahne geçişlerinden bölümlere ayrılır;
+sessiz filmler seslendirmesiz, Türkçe altyazı + lisanslı müzikle yayınlanabilir. Ayrıntılar: [docs/SERIES.md](docs/SERIES.md).
+
 ## Belgeler
 
 - [docs/YOUTUBE_OAUTH.md](docs/YOUTUBE_OAUTH.md) — Google Cloud + n8n OAuth adımları, kota ve denetim
+- [docs/SERIES.md](docs/SERIES.md) — seriler, kamu malı sessiz çizgi filmler, Türkçe altyazı, müzik, Remix
 - [docs/COSTS.md](docs/COSTS.md) — tahmini maliyet raporu
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — hata giderme
 - `db/001_schema.sql` — veritabanı şeması (11 tablo + settings)

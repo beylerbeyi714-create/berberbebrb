@@ -39,6 +39,25 @@ if $DC exec -T n8n n8n export:credentials --id=asfYouTubeOAu001 --output=/tmp/yt
 fi
 python3 n8n/build_workflows.py --credentials $YT_FLAG | $DC exec -T n8n sh -c \
   'umask 077; cat > /tmp/c.json && n8n import:credentials --input=/tmp/c.json; rc=$?; rm -f /tmp/c.json; exit $rc'
+
+# Var olan YouTube kimliğinin izin (scope) listesini güncelle; ID, secret ve diğer alanlar korunur.
+if [[ -z $YT_FLAG ]]; then
+  want=$(python3 -c 'import sys;sys.path.insert(0,"n8n");import build_workflows as b;print(b.YT_SCOPES)')
+  # güncellenmiş kimlik yalnızca bellekte tutulur (diske yazılmaz); değişiklik yoksa boş döner
+  updated=$($DC exec -T n8n sh -c 'n8n export:credentials --id=asfYouTubeOAu001 --decrypted --output=/tmp/yt.json >/dev/null 2>&1; cat /tmp/yt.json; rm -f /tmp/yt.json' </dev/null \
+    | WANT="$want" python3 -c '
+import json, os, sys
+c = json.load(sys.stdin); d = c[0]["data"]
+if not (d.get("enabledScopes") == os.environ["WANT"] and d.get("customScopes")):
+    d["enabledScopes"], d["customScopes"] = os.environ["WANT"], True
+    print(json.dumps(c))')
+  if [[ -n $updated ]]; then
+    printf '%s' "$updated" | $DC exec -T n8n sh -c \
+      'umask 077; cat > /tmp/c.json && n8n import:credentials --input=/tmp/c.json >/dev/null; rm -f /tmp/c.json'
+    echo "YouTube izinleri güncellendi → n8n'de 'YouTube OAuth2' kaydını açıp bir kez 'Sign in with Google' yapın."
+  fi
+  unset updated
+fi
 $DC exec -T n8n n8n import:workflow --separate --input=/import/workflows
 
 for f in n8n/workflows/*.json; do

@@ -58,7 +58,7 @@ async function loadVideos() {
   if (sel.options.length === 1) { STAGES.forEach(s => sel.add(new Option(s, s))); sel.onchange = loadVideos; }
   const rows = await api("/api/videos" + (sel.value ? "?stage=" + sel.value : ""));
   $("#video-table tbody").innerHTML = rows.map(v => `<tr>
-    <td>${esc(v.title)}<div class="muted">${esc(v.last_error || "")}</div></td>
+    <td>${v.series_title ? `<span class="badge">${esc(v.series_title)} · B${v.episode_number}</span> ` : ""}${esc(v.title)}<div class="muted">${esc(v.last_error || "")}</div></td>
     <td><span class="badge">${esc(v.stage)}</span></td><td>${v.duration_sec ?? ""}</td><td>${(+v.cost_usd).toFixed(3)}</td>
     <td>${v.qc_passed === null ? "" : v.qc_passed ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'}</td>
     <td>${v.youtube_url ? `<a href="${esc(v.youtube_url)}" target="_blank" rel="noopener">${esc(v.publish_status)}</a>` : ""}</td>
@@ -74,6 +74,7 @@ async function showVideo(id) {
   box.innerHTML = `<h2>${esc(v.title)}</h2>
     <div class="grid"><div>${v.file_path ? `<video controls src="/media/${esc(v.file_path)}"></video>` : '<p class="muted">Render yok</p>'}</div>
     <div><h3>Kalite kontrol</h3>${qcHtml}
+      ${qc && qc.probe && qc.probe.contact_sheet ? `<h3>Tüm video (2 sn'de bir kare)</h3><a href="/media/${esc(qc.probe.contact_sheet)}" target="_blank" rel="noopener"><img src="/media/${esc(qc.probe.contact_sheet)}" alt="önizleme sayfası" style="max-width:100%;border-radius:8px;border:1px solid var(--line)"></a>` : ""}
       <p>${v.stage === "qc_passed" ? '<button id="btn-approve">Onayla (gizli yükleme kuyruğu)</button> ' : ""}
       ${["qc_passed","qc_failed","rendered"].includes(v.stage) ? '<button class="secondary" id="btn-reject">Reddet</button>' : ""}</p></div></div>
     <h3>Senaryo</h3><ol>${v.body.scenes.map(s => `<li>${esc(s.text)}<div class="muted">${esc(s.visual_prompt)}</div></li>`).join("")}</ol>
@@ -134,6 +135,53 @@ async function loadErrors() {
   document.querySelectorAll("#err-table button").forEach(b => b.onclick = async () => { await api(`/api/errors/${b.dataset.id}/resolve`, {method: "POST"}); loadErrors(); });
 }
 
-const loaders = {overview: loadOverview, videos: loadVideos, ideas: loadIdeas, calendar: loadCalendar, costs: loadCosts, perf: loadPerf, errors: loadErrors};
+async function loadSeries() {
+  const [ser, src] = await Promise.all([api("/api/series"), api("/api/sources")]);
+  const fmtDur = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+  $("#series-table tbody").innerHTML = ser.map(s => `<tr>
+    <td><b>${esc(s.title)}</b>${s.made_for_kids ? ' <span class="badge">çocuk</span>' : ""}<div class="muted">${esc(s.source_title || s.brief || "")}</div></td>
+    <td>${s.kind === "pd_clips" ? "Film kesitleri" : "Özgün"}</td><td><span class="badge">${esc(s.status)}</span>${s.narration ? "" : ' <span class="badge">sessiz</span>'}</td>
+    <td>${s.produced}${s.total_episodes ? " / " + s.total_episodes : ""}</td><td>${s.uploaded}</td>
+    <td>${s.playlist_id ? `<a href="https://www.youtube.com/playlist?list=${esc(s.playlist_id)}" target="_blank" rel="noopener">aç</a>` : ""}</td>
+    <td><button class="secondary" data-next="${s.id}">Sonraki bölüm</button>
+        <button class="secondary" data-status="${s.id}" data-to="${s.status === "active" ? "paused" : "active"}">${s.status === "active" ? "Duraklat" : "Devam et"}</button></td></tr>`).join("")
+    || '<tr><td colspan="7" class="muted">Henüz seri yok</td></tr>';
+  document.querySelectorAll("[data-next]").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { const r = await api(`/api/series/${b.dataset.next}/next`, {method: "POST"}); alert(`Bölüm ${r.episode} oluşturuldu. Üretim zinciri (görsel → ses → montaj → QC) otomatik devam eder; otomasyon kapalıysa Videolar sekmesinden takip edin.`); }
+    catch (e) { alert("Bölüm oluşturulamadı: " + e.message); }
+    loadSeries();
+  });
+  document.querySelectorAll("[data-status]").forEach(b => b.onclick = async () => {
+    await api(`/api/series/${b.dataset.status}/status`, {method: "POST", body: JSON.stringify({status: b.dataset.to})}); loadSeries();
+  });
+  $("#series-form").source_id.innerHTML = '<option value="">—</option>' + src.map(x => `<option value="${x.id}">${esc(x.title)} (${x.episodes} bölüm${x.verified ? "" : ", LİSANS DOĞRULANMADI"})</option>`).join("");
+  $("#source-table tbody").innerHTML = src.map(x => `<tr><td>${esc(x.title)}<div class="muted">${esc(x.file_path)}</div></td>
+    <td>${fmtDur(+x.duration_sec)}</td><td>${x.episodes}</td><td>${x.subtitle_path ? '<span class="ok">TR ✓</span>' : '<span class="muted">yok</span>'}</td>
+    <td>${esc(x.license_name)} ${x.verified ? '<span class="ok">✓ doğrulandı</span>' : '<span class="bad">✗ doğrulanmadı</span>'}
+      ${x.proof_url ? `<a href="${esc(x.proof_url)}" target="_blank" rel="noopener">kanıt</a>` : ""}</td></tr>`).join("")
+    || '<tr><td colspan="5" class="muted">Henüz kaynak yok</td></tr>';
+}
+$("#series-form").onsubmit = async e => {
+  e.preventDefault(); const f = e.target;
+  const body = {title: f.title.value, kind: f.kind.value, description: f.description.value, source_id: f.source_id.value || null,
+    brief: f.brief.value || null, made_for_kids: f.made_for_kids.checked, buffer_size: +f.buffer_size.value,
+    narration: f.narration.checked, keep_source_audio: f.keep_source_audio.checked, music_file: f.music_file.value.trim() || null,
+    music_license_url: f.music_license_url.value || null, music_confirmed: f.music_confirmed.checked};
+  try { await api("/api/series", {method: "POST", body: JSON.stringify(body)}); $("#series-msg").textContent = "Seri oluşturuldu ✓"; f.reset(); loadSeries(); }
+  catch (err) { $("#series-msg").textContent = "Hata: " + err.message; }
+};
+$("#source-form").onsubmit = async e => {
+  e.preventDefault(); const f = e.target;
+  $("#source-msg").textContent = "Film inceleniyor, sahne geçişleri bulunuyor (uzun filmlerde birkaç dakika sürebilir)…";
+  const body = {file_name: f.file_name.value.trim(), title: f.title.value, license_kind: f.license_kind.value,
+    license_name: f.license_name.value || null, source_url: f.source_url.value || null, proof_url: f.proof_url.value || null,
+    confirmed: f.confirmed.checked, subtitle_file: f.subtitle_file.value.trim() || null};
+  try { const r = await api("/api/sources", {method: "POST", body: JSON.stringify(body)});
+    $("#source-msg").textContent = `Kaydedildi ✓ — ${r.episodes} bölüme ayrıldı.` + (r.warning ? " ⚠ " + r.warning : ""); f.reset(); loadSeries(); }
+  catch (err) { $("#source-msg").textContent = "Hata: " + err.message; }
+};
+
+const loaders = {series: loadSeries, overview: loadOverview, videos: loadVideos, ideas: loadIdeas, calendar: loadCalendar, costs: loadCosts, perf: loadPerf, errors: loadErrors};
 function load(tab) { loaders[tab]().catch(e => console.error(e)); }
 load("overview");

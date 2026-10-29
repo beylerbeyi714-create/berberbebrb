@@ -18,8 +18,9 @@ API = "http://factory-api:8000"
 FACTORY_CRED = {"httpHeaderAuth": {"id": "asfFactoryKey001", "name": "Factory API Key"}}
 WEBHOOK_CRED = {"httpHeaderAuth": {"id": "asfWebhookKey001", "name": "n8n Webhook Key"}}
 YT_CRED = {"youTubeOAuth2Api": {"id": "asfYouTubeOAu001", "name": "YouTube OAuth2 (AI Shorts Factory)"}}
+# youtube.force-ssl: seri oynatma listeleri (playlists / playlistItems) için gerekli
 YT_SCOPES = ("https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly "
-             "https://www.googleapis.com/auth/yt-analytics.readonly")
+             "https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/youtube.force-ssl")
 ERROR_WF_ID = "asfWf10ErrorMon0"
 
 
@@ -135,6 +136,8 @@ def wf_simple():
                    {"field": "minutes", "minutesInterval": 5}, "POST", "/api/steps/qc/run", query={"limit": "5"}),
         gated_step("asfWf09Optimizer", "09 Performance Optimizer", "optimizer", "optimizer",
                    {"field": "cronExpression", "expression": "40 4 * * 1"}, "POST", "/api/optimizer/run"),
+        gated_step("asfWf11SeriesPln", "11 Series Episode Planner", "series", "series",
+                   {"field": "hours", "hoursInterval": 1}, "POST", "/api/series/run"),
     ]
 
 
@@ -227,6 +230,48 @@ def wf_publisher():
     wf.chain(merge, put, res, rep)
     wf.link(fail, rep)
     log_run(wf, rep, "publish")
+
+    # --- seri bölümüyse: oynatma listesine sırayla ekle (liste yoksa önce oluştur)
+    yt = {"authentication": "predefinedCredentialType", "nodeCredentialType": "youTubeOAuth2Api"}
+    soft = {"response": {"response": {"fullResponse": True, "neverError": True}}, "timeout": 30000}
+    ser = "$('Claim approved video').first().json.series"
+    is_ser = wf.node("Series episode?", "if", 2.2, cond_bool(f"={{{{ $json.success && !!{ser} }}}}"), pos=[2200, 120])
+    has_pl = wf.node("Has playlist?", "if", 2.2, cond_bool(f"={{{{ !!{ser}.playlist_id }}}}"), pos=[2420, 120])
+    mk_pl = wf.node("YouTube: create playlist", "httpRequest", 4.2, {
+        "method": "POST", "url": "https://www.googleapis.com/youtube/v3/playlists", **yt,
+        "sendQuery": True, "queryParameters": {"parameters": [{"name": "part", "value": "snippet,status"}]},
+        "sendBody": True, "specifyBody": "json", "jsonBody": f"={{{{ JSON.stringify({ser}.playlist_body) }}}}",
+        "options": soft}, YT_CRED, pos=[2640, 200], onError="continueRegularOutput")
+    save_pl = wf.node("Save playlist id", "httpRequest", 4.2, api(
+        "POST", f"/api/series/{{{{ {ser}.id }}}}/playlist",
+        body="={{ JSON.stringify({ playlist_id: $json.body.id }) }}"), FACTORY_CRED, pos=[2860, 200])
+
+    def add_item(name, playlist_expr, pos):
+        return wf.node(name, "httpRequest", 4.2, {
+            "method": "POST", "url": "https://www.googleapis.com/youtube/v3/playlistItems", **yt,
+            "sendQuery": True, "queryParameters": {"parameters": [{"name": "part", "value": "snippet"}]},
+            "sendBody": True, "specifyBody": "json",
+            "jsonBody": ("={{ JSON.stringify({ snippet: { playlistId: " + playlist_expr + ", resourceId: "
+                         "{ kind: 'youtube#video', videoId: $('Build result').first().json.youtube_video_id } } }) }}"),
+            "options": soft}, YT_CRED, pos=pos, onError="continueRegularOutput")
+
+    add_old = add_item("Add to existing playlist", f"{ser}.playlist_id", [2640, 40])
+    add_new = add_item("Add to new playlist", "$json.playlist_id", [3080, 200])
+    pl_ok = wf.node("Playlist OK?", "if", 2.2, cond_bool("={{ $json.statusCode >= 200 && $json.statusCode < 300 }}"),
+                    pos=[3300, 120])
+    pl_err = wf.node("Log playlist error", "httpRequest", 4.2, api("POST", "/api/errors", body=(
+        "={{ JSON.stringify({ source: 'youtube-playlist', video_id: $('Claim approved video').first().json.video_id, "
+        "message: 'Oynatma listesine eklenemedi (video yüklendi): ' + ($json.error?.message || "
+        "('HTTP ' + $json.statusCode + ' ' + JSON.stringify($json.body || {}).slice(0, 300))) }) }}")),
+        FACTORY_CRED, pos=[3520, 200])
+    wf.link(res, is_ser)
+    wf.link(is_ser, has_pl, 0)
+    wf.link(has_pl, add_old, 0)
+    wf.link(has_pl, mk_pl, 1)
+    wf.chain(mk_pl, save_pl, add_new)
+    wf.link(add_old, pl_ok)
+    wf.link(add_new, pl_ok)
+    wf.link(pl_ok, pl_err, 1)
     return wf
 
 

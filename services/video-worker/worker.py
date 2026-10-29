@@ -62,7 +62,12 @@ def probe(path: Path) -> dict:
 # ------------------------------------------------------------------ modeller
 class Scene(BaseModel):
     image_path: str | None = None       # durağan görsel (Ken Burns uygulanır)
-    clip_path: str | None = None        # video klip (kırpılır/döngülenir)
+    clip_path: str | None = None        # video klip
+    clip_start: float = Field(default=0.0, ge=0)   # klibin kaçıncı saniyesinden başlanacak (kaynak film kesiti)
+    fit: str = "crop"                   # "crop": 9:16'ya kırp · "blur": kırpmadan sığdır, kenarları bulanık doldur
+    keep_audio: bool = False            # klibin kendi sesini kullan (seslendirme yoksa)
+    is_source: bool = False             # kaynak film kesiti: [clip_start, clip_start+duration] dışına asla taşmaz
+    still: bool = False                 # görseli hareketsiz göster (bölüm kartları: yazı kaymasın)
     voice_path: str | None = None
     duration: float = Field(gt=0.3, le=60)
 
@@ -73,7 +78,7 @@ class RenderRequest(BaseModel):
     subtitle_path: str | None = None    # .srt — videoya gömülür
     music_path: str | None = None
     music_volume: float = 0.12
-    transition: str = "fade"            # xfade geçişi; "none" ile kapatılır
+    transition: str = "fadeblack"       # xfade geçişi (kısa karartma: iki görüntü üst üste binmez); "none" kapatır
     transition_sec: float = 0.35
     output_path: str
 
@@ -89,10 +94,29 @@ def _scene_segment(scene: Scene, length: float, out: Path, idx: int) -> None:
     frames = max(1, round(length * FPS))
     if scene.clip_path:
         src = safe_path(scene.clip_path)
+        if scene.fit == "blur":
+            # kırpmadan sığdır: arka plan = aynı görüntünün büyütülüp bulanıklaştırılmış hali
+            vf = (f"split[a][b];[a]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                  f"boxblur=24:4,eq=brightness=-0.08[bg];[b]scale={W}:{H}:force_original_aspect_ratio=decrease[fg];"
+                  f"[bg][fg]overlay=(W-w)/2:(H-h)/2,fps={FPS},setsar=1,format=yuv420p")
+        else:
+            vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                  f"fps={FPS},setsar=1,format=yuv420p")
+        if scene.is_source:
+            # kaynak film kesiti: yalnızca kendi aralığı okunur; geçiş payı son kare dondurularak eklenir
+            # (bir sonraki bölümün görüntüsü bu bölüme asla sızmaz)
+            pad = max(0.0, length - scene.duration)
+            vf += f",tpad=stop_mode=clone:stop_duration={pad + 0.1:.3f}"
+            cmd = ["ffmpeg", "-y", "-ss", f"{scene.clip_start:.3f}", "-t", f"{scene.duration:.3f}",
+                   "-i", str(src), "-t", f"{length:.3f}", "-vf", vf, "-an"]
+        else:
+            # kısa üretim klipleri (yapay zekâ videoları) sahne süresine göre döngülenir
+            cmd = ["ffmpeg", "-y", "-stream_loop", "-1", "-i", str(src), "-t", f"{length:.3f}", "-vf", vf, "-an"]
+    elif scene.image_path and scene.still:
+        src = safe_path(scene.image_path)
         vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
               f"fps={FPS},setsar=1,format=yuv420p")
-        cmd = ["ffmpeg", "-y", "-stream_loop", "-1", "-i", str(src), "-t", f"{length:.3f}",
-               "-vf", vf, "-an"]
+        cmd = ["ffmpeg", "-y", "-loop", "1", "-i", str(src), "-frames:v", str(frames), "-vf", vf]
     elif scene.image_path:
         src = safe_path(scene.image_path)
         # Ken Burns: sahne sırasına göre yakınlaşma / uzaklaşma dönüşümlü
@@ -105,6 +129,10 @@ def _scene_segment(scene: Scene, length: float, out: Path, idx: int) -> None:
         raise ValueError(f"scene {idx}: image_path or clip_path required")
     cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(FPS), str(out)]
     run(cmd)
+
+
+def _has_audio(path: Path) -> bool:
+    return any(st["codec_type"] == "audio" for st in probe(path)["streams"])
 
 
 def _srt_style() -> str:
@@ -160,6 +188,10 @@ def render(job_id: str, req: RenderRequest) -> None:
             for i, sc in enumerate(req.scenes):
                 if sc.voice_path:
                     a_inputs += ["-i", str(safe_path(sc.voice_path))]
+                elif sc.keep_audio and sc.clip_path and _has_audio(safe_path(sc.clip_path)):
+                    # kaynak filmin o kesitteki orijinal sesi
+                    a_inputs += ["-ss", f"{sc.clip_start:.3f}", "-t", f"{sc.duration:.3f}",
+                                 "-i", str(safe_path(sc.clip_path))]
                 else:
                     a_inputs += ["-f", "lavfi", "-t", f"{sc.duration:.3f}", "-i",
                                  "anullsrc=r=48000:cl=stereo"]
@@ -282,8 +314,21 @@ def probe_video(req: ProbeRequest):
                 color = max(abs(a - b) for a, b in zip(prints[i][1], prints[j][1]))
                 if dist <= 8 and color < 5:
                     dup_pairs.append([i, j, dist, round(color, 1)])
+    # bozuk görüntü taraması: tüm kareler ve ses baştan sona çözülür; tek bir hata bile raporlanır
+    dec = subprocess.run(["ffmpeg", "-v", "error", "-xerror", "-i", str(path), "-f", "null", "-"],
+                         capture_output=True, text=True, timeout=900)
+    decode_errors = [ln for ln in dec.stderr.splitlines() if ln.strip()]
+    if dec.returncode != 0 and not decode_errors:
+        decode_errors = [f"ffmpeg çıkış kodu {dec.returncode}"]
+    # önizleme sayfası: 2 sn'de bir kare, 6 sütunlu tek görsel (panelde onaydan önce gösterilir)
+    sheet = path.with_name(path.stem + "_sheet.jpg")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(path), "-vf",
+                    "fps=1/2,scale=180:320,tile=6x4:padding=4:color=white", "-frames:v", "1", "-q:v", "4",
+                    str(sheet)], capture_output=True, timeout=300)
     return {
         "opens": True,
+        "decode_errors": decode_errors[:20],
+        "contact_sheet": str(sheet.relative_to(MEDIA_ROOT)) if sheet.exists() else None,
         "format_duration": float(info["format"].get("duration", 0)),
         "size_bytes": int(info["format"].get("size", 0)),
         "video": v and {"codec": v["codec_name"], "width": v["width"], "height": v["height"],
@@ -295,3 +340,30 @@ def probe_video(req: ProbeRequest):
         "freeze_segments": _detect(path, "freezedetect=n=0.001:d=2.5", "freeze_duration"),
         "duplicate_scene_pairs": dup_pairs,
     }
+
+
+class ScenesRequest(BaseModel):
+    path: str
+    threshold: float = Field(default=0.3, gt=0, lt=1)   # 0-1: sahne değişimi hassasiyeti
+
+
+@app.post("/scenes", dependencies=[Depends(auth)])
+def detect_scenes(req: ScenesRequest):
+    """Uzun bir videodaki sahne geçişlerini (saniye) ve süreyi döndürür.
+    Bölümler sahne ortasından değil, bu noktalardan kesilir."""
+    path = safe_path(req.path)
+    info = probe(path)
+    duration = float(info["format"]["duration"])
+    proc = subprocess.run(["ffmpeg", "-v", "info", "-i", str(path), "-an",
+                           "-vf", f"scale=320:-2,select='gt(scene,{req.threshold})',showinfo",
+                           "-f", "null", "-"], capture_output=True, text=True, timeout=1800)
+    cuts = []
+    for ln in proc.stderr.splitlines():
+        if "showinfo" in ln and "pts_time:" in ln:
+            try:
+                cuts.append(round(float(ln.split("pts_time:")[1].split()[0]), 3))
+            except ValueError:
+                pass
+    v = next((s for s in info["streams"] if s["codec_type"] == "video"), {})
+    return {"duration": duration, "cuts": sorted(set(cuts)), "has_audio": _has_audio(path),
+            "width": v.get("width"), "height": v.get("height")}
